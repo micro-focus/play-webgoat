@@ -97,3 +97,11 @@ jobs:
         with:
           name: sarif-files
           path: '**/*.sarif'
+
+      # Attach package file to workflow run
+      - name: Attach package file
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+          name: sarif-files
+          path: '**/package.zip'
