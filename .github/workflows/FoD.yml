@@ -47,6 +47,7 @@ jobs:
           SFTP_PW: ${{secrets.SFTP_PW}}
         run: |
           sshpass -p "$SFTP_PW" sftp -oHostKeyAlgorithms=+ssh-dss -oStrictHostKeyChecking=no -P 2222 $SFTP_UN@$SFTP_SERVER:/22.1/SCA/sca_linux_min.zip
+          mkdir ~/fortify
           unzip -d ~/fortify/sca sca_linux_min.zip
           echo "~/fortify/sca/bin" >> $GITHUB_PATH
           ln -s $JAVA_HOME ~/fortify/sca/jre
