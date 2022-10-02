@@ -60,10 +60,11 @@ jobs:
 
       - name: Create mobile build session
         run: |
+          echo "PATH=$PATH"
           echo "Check SCA version:"
           sourceanalyzer -v
           echo "Create mbs file..."
-          sourceanalyzer -b $BUILD_ID -export-build-session $BUILD_ID.mbs
+          ~/fortify/sca/bin/sourceanalyzer -b $BUILD_ID -export-build-session $BUILD_ID.mbs
           echo "Package mbs file in a zip file..."
           zip -9m package.zip ${BUILD_ID}.mbs
         env:
