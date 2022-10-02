@@ -39,23 +39,25 @@ jobs:
         run: |
           mkdir -p ~/.lightbend
           echo "$LIGHTBEND_LICENSE" > ~/.lightbend/license
+
+      - name: Download minimized Fortify SCA 22.1.1
+        env:
+          SFTP_SERVER: ${{secrets.SFTP_SERVER}}
+          SFTP_UN: ${{secrets.SFTP_UN}}
+          SFTP_PW: ${{secrets.SFTP_PW}}
+        run: |
+          sshpass -p '$SFTP_PW' sftp -oHostKeyAlgorithms=+ssh-dss -P 2222 $SFTP_UN@$SFTP_SERVER:/22.1/SCA/sca_linux_min.zip
+          unzip -d ~/fortify/sca sca_linux_min.zip
+          echo "~/fortify/sca/bin" >> $GITHUB_PATH
+          ln -s $JAVA_HOME ~/fortify/sca/jre
+          chmod +x $JAVA_HOME/lib/server/libjvm.so
       
       - name: Build and translate
         run: |
           rm -rf ~/.fortify/sca22.1/build/
           sbt clean compile
-          cd ~/.fortify/sca22.1/build/
-          rm *.scasession.lock
-          mv ${BUILD_ID}.scasession.increment ${BUILD_ID}.scasession
-          sed -i '/./,$!d' ${BUILD_ID}.scasession
-          sed -i '/^<>$/d' ${BUILD_ID}.scasession
-          echo 'SCAVersion=22.1.1.0017' > MobileBuildSession.manifest
-          echo "BuildID=$BUILD_ID" >> MobileBuildSession.manifest
-          echo "BuildDir=$BUILD_ID" >> MobileBuildSession.manifest
-          zip -r ${BUILD_ID}.mbs .
+          sourceanalyzer -b $BUILD_ID -export-build-session $BUILD_ID.mbs
           zip -9m package.zip ${BUILD_ID}.mbs
-          cd -
-          mv ~/.fortify/sca22.1/build/package.zip .
         env:
           BUILD_ID: "play-webgoat"
       
