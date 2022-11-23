@@ -52,7 +52,7 @@ jobs:
           unzip -q -d ~/fortify/sca sca_linux_min.zip
           echo "$HOME/fortify/sca/bin" >> $GITHUB_PATH
           ln -s $JAVA_HOME ~/fortify/sca/jre
-          chmod +x $JAVA_HOME/lib/server/libjvm.so
+          # chmod +x $JAVA_HOME/lib/server/libjvm.so
       
       - name: Build and translate
         run: |
