@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 2
       # If this run was triggered by a pull request event, then checkout the head of the pull request instead of the merge commit.
       - run: git checkout HEAD^2
-        if: ${{ github.event_name == 'pull_request' }}      
+        if: ${{ github.event_name == 'pull_request' }}
       # Java 11 or higher required by ScanCentral Client
       - name: Setup Java
         uses: actions/setup-java@v3
