@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   # Master or main branch that you want to trigger this workflow for
   push:
-    branches: [test]
+    branches: [main]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [test]
+    branches: [main]
 jobs:                                                  
   Fortify-SAST:
     # Use the appropriate runner for building your source code
