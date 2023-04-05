@@ -45,12 +45,14 @@ jobs:
           chmod +x $JAVA_HOME/lib/server/libjvm.so
           sed -ir "s/^[#]*\s*${CLIENT_PK}=.*/$CLIENT_PK=$CLIENT_AUTH_TOKEN/" $HOME/fortify/sca/Core/config/client.properties
 
-      - name: Install Lightbend license
+      - name: Install Lightbend and Fortify licenses
         env:
-          LIGHTBEND_LICENSE: ${{secrets.LIGHTBEND_LICENSE}}          
+          LIGHTBEND_LICENSE: ${{secrets.LIGHTBEND_LICENSE}}
+          FORTIFY_LICENSE: ${{secrets.FORTIFY_LICENSE}}
         run: |
           mkdir -p ~/.lightbend
           echo "$LIGHTBEND_LICENSE" > ~/.lightbend/license
+          echo "$FORTIFY_LICENSE" > $HOME/fortify/sca/fortify.license
       
       - name: Build and translate
         run: |
