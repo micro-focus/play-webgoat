@@ -40,6 +40,7 @@ jobs:
       - name: Add sourceanalyzer shell script
         run: |
           SOURCEANALYZER="$(dirname $(which scancentral))/sourceanalyzer"
+          echo "SOURCEANALYZER=$SOURCEANALYZER"
           echo -e '#!/bin/bash\n\necho "Fortify Static Code Analyzer 22.1.1.0017"' > $SOURCEANALYZER
           chmod u+x $SOURCEANALYZER
 
