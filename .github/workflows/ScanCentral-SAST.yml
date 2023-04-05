@@ -39,7 +39,7 @@ jobs:
       ### Add sourceanalyzer shell script to output SCA version
       - name: Add sourceanalyzer shell script
         run: |
-          SOURCEANALYZER="$(dirname $(find $RUNNER_TOOL_CACHE -type -f -name scancentral))/sourceanalyzer"
+          SOURCEANALYZER="$(dirname $(find $RUNNER_TOOL_CACHE -type f -name scancentral))/sourceanalyzer"
           echo "SOURCEANALYZER=$SOURCEANALYZER"
           echo -e '#!/bin/bash\n\necho "Fortify Static Code Analyzer 22.1.1.0017"' > $SOURCEANALYZER
           chmod u+x $SOURCEANALYZER
