@@ -36,6 +36,13 @@ jobs:
           version: 22.1.0
           client-auth-token: ${{ secrets.CLIENT_AUTH_TOKEN }}  # Optional, but required if ScanCentral Controller requires client authentication
 
+      ### Add sourceanalyzer shell script to output SCA version
+      - name: Add sourceanalyzer shell script
+        run: |
+          SOURCEANALYZER="$(dirname $(which scancentral))/sourceanalyzer"
+          echo -e '#!/bin/bash\n\necho "Fortify Static Code Analyzer 22.1.1.0017"' > $SOURCEANALYZER
+          chmod u+x $SOURCEANALYZER
+
       - name: Install Lightbend license
         env:
           LIGHTBEND_LICENSE: ${{secrets.LIGHTBEND_LICENSE}}          
