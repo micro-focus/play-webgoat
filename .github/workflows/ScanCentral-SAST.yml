@@ -63,7 +63,8 @@ jobs:
       #   Update BUILD_OPTS based on the ScanCentral Client documentation and your project's included tech stack(s).
       #   ScanCentral Client will download dependencies for maven, gradle and msbuild projects.
       #   For other build tools, add your build commands to the workflow to download necessary dependencies and prepare according to Fortify SCA documentation.
-      - name: Perform SAST Scan
+      - name: Request Remote ScanCentral SAST Scan
+        if: success()
         run: scancentral -url $URL start -b $BUILD_ID -upload -versionid $VERSION_ID -uptoken $TOKEN -scan
         env:                                            
           URL: ${{ secrets.SCANCENTRAL_URL }}
@@ -79,15 +80,72 @@ jobs:
            name: scancentral-logs
            path: ~/.fortify/scancentral-22.1.0/log
 
-      # Wait for SAST scan to complete
-      - name: Sleep for 360 seconds
-        uses: jakejarvis/wait-action@master
-        with:
-          time: '360s'
+      - name: Check Remote Scan Status
+        if: success()
+        env:
+          SSC_URL: ${{secrets.SSC_URL}}
+          TOKEN: ${{secrets.SSC_CI_TOKEN}}
+        run: |
+          FORTIFYTOKEN=$(echo -n $TOKEN | base64)
+          JOB_TOKEN="$(grep -R "Submitted job and received token" ~/.fortify/scancentral* | tail -1 | grep -E -o '[-0-9a-z]{36}$')"
+          POLL_PERIOD="5s"
+          while [ -z "$RESPONSE" ] || [ -z "$(echo $RESPONSE | grep -oh '"responseCode":200')" ]
+          do
+            RESPONSE=$(curl -s -w '\n' ${SSC_URL}/api/v1/cloudjobs/$JOB_TOKEN -H 'Accept: application/json' -H 'Authorization: FortifyToken '"$FORTIFYTOKEN")
+            echo RESPONSE=$RESPONSE
+            if [ ! -z "$(echo $RESPONSE | grep -oh 'Access Denied. Unauthorized access')" ]; then
+              echo "Access Denied. Unauthorized access. Token might be invalid. Exiting with error."
+              exit 1
+            fi
+            sleep $POLL_PERIOD
+          done
+          PV_ID=$(echo $RESPONSE | grep -E -o '\"pvId\":[0-9]*' | grep -o '[0-9]*')
+          echo PV_ID=$PV_ID
+          JOB_STATE=$(echo $RESPONSE | grep -E -o '\"jobState\":\"[_A-Z]*\"' | grep -E -o '[_A-Z]{2,}')
+          echo JOB_STATE=$JOB_STATE
+          while [ "$JOB_STATE" = "PENDING" ] || [ "$JOB_STATE" = "SCAN_RUNNING" ] || [ "$JOB_STATE" = "UPLOAD_QUEUED" ]
+          do
+            sleep $POLL_PERIOD
+            RESPONSE=$(curl -s -w '\n'  ${SSC_URL}/api/v1/cloudjobs/$JOB_TOKEN -H 'Accept: application/json' -H 'Authorization: FortifyToken '"$FORTIFYTOKEN")
+            JOB_STATE=$(echo $RESPONSE | grep -E -o '\"jobState\":\"[_A-Z]*\"' | grep -E -o '[_A-Z]{2,}')
+          done
+          if [ ! "$JOB_STATE" = "UPLOAD_COMPLETED" ]
+          then
+            echo ScanCentral job completed but artifact upload either failed or canceled. Setting build status to failed.
+            exit 1
+          fi
+          RESPONSE=$(curl -s -w '\n'  ${SSC_URL}/api/v1/projectVersions/$PV_ID/artifacts?limit=1 -H 'Accept: application/json' -H 'Authorization: FortifyToken '"$FORTIFYTOKEN")
+          ARTIFACT_STATUS=$(echo $RESPONSE | grep -E -o '\"status\":\"[_A-Z]*\"' | grep -E -o '[_A-Z]{2,}')
+          echo ARTIFACT_STATUS=$ARTIFACT_STATUS
+          if [ "$ARTIFACT_STATUS" = "PROCESSING" ] || [ "$ARTIFACT_STATUS" = "SCHED_PROCESSING" ]
+          then
+            sleep $POLL_PERIOD
+            RESPONSE=$(curl -s -w '\n'  ${SSC_URL}/api/v1/projectVersions/$PV_ID/artifacts?limit=1 -H 'Accept: application/json' -H 'Authorization: FortifyToken '"$FORTIFYTOKEN")
+            ARTIFACT_STATUS=$(echo $RESPONSE | grep -E -o '\"status\":\"[_A-Z]*\"' | grep -E -o '[_A-Z]{2,}')
+          fi
+          if [ ! "$ARTIFACT_STATUS" = "PROCESS_COMPLETE" ]
+          then
+            echo The ScanCentral job completed but artifact upload failed processing.
+            exit 1
+          fi
+          echo ARTIFACT_STATUS=$ARTIFACT_STATUS
+          RESPONSE=$(curl -s -w '\n'  ${SSC_URL}/api/v1/projectVersions/$PV_ID/performanceIndicatorHistories/FortifySecurityRating -H  'Accept: application/json' -H  'Authorization: FortifyToken '"$FORTIFYTOKEN")
+          echo PI RESPONSE=$RESPONSE
+          RATING=$(echo $RESPONSE | grep -E -o '\"value\":[0-9]\.[0-9]' | cut -b 9)
+          echo RATING=$RATING
+          if [ "$RATING" -lt "3" ]
+          then
+            echo Critical or High severity issues detected.
+            exit
+          else
+            echo No Critical or High severity issues detected.
+            exit
+          fi        
 
       # Pull SAST issues from Fortify SSC and generate GitHub-optimized SARIF output
       - name: Export Results
         uses: fortify/gha-export-vulnerabilities@v1
+        if: success()
         with:
           ssc_base_url: ${{ secrets.SSC_URL }}
           ssc_auth_token: ${{ secrets.SSC_CI_TOKEN }}
@@ -96,13 +154,14 @@ jobs:
       # Import Fortify SAST results to GitHub Security Code Scanning
       - name: Import Results
         uses: github/codeql-action/upload-sarif@v2
+        if: success()
         with:
           sarif_file: ./gh-fortify-sast.sarif
 
       # Archive sarif file
       - name: Upload Results
         uses: actions/upload-artifact@v2
-        if: always()
+        if: success()
         with:
           name: sarif-files
           path: '**/*.sarif'
